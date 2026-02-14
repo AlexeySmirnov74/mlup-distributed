@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: mlup-redis
+    container_name: mlup-redis-prod
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     command: ["redis-server", "--appendonly", "yes"]
@@ -13,7 +13,7 @@ services:
 
   api:
     build: .
-    container_name: mlup-api
+    container_name: mlup-api-prod
     depends_on:
       redis:
         condition: service_healthy
@@ -52,7 +52,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.9.1
-    container_name: mlup-prometheus
+    container_name: mlup-prometheus-prod
     labels:
       dev.dozzle.group: Monitoring
     depends_on:
@@ -65,7 +65,7 @@ services:
 
   grafana:
     image: grafana/grafana:12.3.0
-    container_name: mlup-grafana
+    container_name: mlup-grafana-prod
     labels:
       dev.dozzle.group: Monitoring
     depends_on:
@@ -82,7 +82,7 @@ services:
 
   dozzle:
     image: amir20/dozzle:v8.9.0
-    container_name: mlup-dozzle
+    container_name: mlup-dozzle-prod
     ports:
       - "9999:8080"
     volumes:
