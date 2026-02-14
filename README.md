@@ -130,7 +130,8 @@ predict_id исчезает.
 
 # 🏗 Архитектура
 
-<img width="1696" height="608" alt="structure" src="https://github.com/user-attachments/assets/4ec1b2ea-7fc6-4342-a10d-019508d6f093" />
+<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/2049a4d0-9441-4cce-aaab-efdf81825a15" />
+
 
 ----------
 
