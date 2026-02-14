@@ -21,7 +21,10 @@
 
 # 🧨 Проблема базового MLup
 
-В MLup уже есть механизм:
+В MLup уже есть [механизм](https://mlup.org/web_app_architectures/#mlupwebarchitecturedirectly_to_predictdirectlytopredictarchitecture):
+
+
+
 ```
 POST /predict → получить predict_id  
 GET /predict/{predict_id} → получить результат
