@@ -105,7 +105,7 @@ predict_id исчезает.
 -   падение процесса не уничтожает очередь
 -   реализована гарантия обработки
 ```
-Основные изменения в mlup\web\architecture\redis_queue
+Основные изменения в [mlup\web\architecture\redis_queue](https://github.com/AlexeySmirnov74/mlup-distributed/tree/main/mlup/web/architecture/redis_queue)
 ```
 ----------
 
