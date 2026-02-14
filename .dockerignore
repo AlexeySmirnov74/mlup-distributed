@@ -1,0 +1,44 @@
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs / runtime artifacts
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local configs / secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Misc
+*.zip
+*.tar
