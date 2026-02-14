@@ -268,3 +268,6 @@ app.py — это HTTP API слой:
 -   Горизонтальное масштабирование
 -   Fault-tolerance
 -   Production-grade архитектура
+
+<img width="1530" height="814" alt="Grafana2" src="https://github.com/user-attachments/assets/702e65b5-7f25-4239-b1af-73268fc5d9f1" />
+
