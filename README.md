@@ -1,3 +1,5 @@
+<img width="1696" height="608" alt="mlup-distributed" src="https://github.com/user-attachments/assets/2a60dd7d-88d9-4da2-84d8-7e7560457660" />
+
 # 🚀 MLup Distributed (Redis Queue Edition)
 
 > An enhanced, production-ready version of MLup
@@ -76,7 +78,7 @@ The queue and status storage are moved to Redis. Now:
 
 # 🏗 Architecture
 
-
+<img width="1696" height="608" alt="structure" src="https://github.com/user-attachments/assets/cbd8a67c-8fed-4c5d-9784-4ed8accbe036" />
 
 * **CLIENT** → Sends request to FastAPI.
 * **FastAPI (API)** → Receives request and pushes to Redis.
