@@ -78,7 +78,7 @@ The queue and status storage are moved to Redis. Now:
 
 # 🏗 Architecture
 
-<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/5203bafa-c01e-4cd7-800b-e8a12bae1984" />
+<img width="512" height="512" alt="image" src="https://github.com/user-attachments/assets/5203bafa-c01e-4cd7-800b-e8a12bae1984" />
 
 
 * **CLIENT** → Sends request to FastAPI.
