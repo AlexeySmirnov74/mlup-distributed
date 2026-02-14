@@ -1,3 +1,5 @@
+<img width="1696" height="608" alt="mlup-distributed" src="https://github.com/user-attachments/assets/71523006-f42b-4bb8-ab2e-67b78f260346" />
+
 # 🚀 MLup Distributed (Redis Queue Edition)
 
 > Расширенная production-ready версия MLup  
@@ -124,26 +126,9 @@ predict_id исчезает.
 ----------
 
 # 🏗 Архитектура
-```
-                   CLIENT
-                     │
-                     ▼
-               ┌────────────┐
-               │   FastAPI  │ 
-               │   (API)    │
-               └────────────┘
-                     │
-                     ▼
-               ┌────────────┐
-               │   Redis    │
-               │   Queue    │
-               └────────────┘
-                     │
-           ┌─────────┼──────────┬───────────┐
-           ▼         ▼          ▼           ▼
-        Worker-1  Worker-2   Worker-3   Worker-N
-           (любые машины, Docker контейнеры)
-```
+
+<img width="1696" height="608" alt="structure" src="https://github.com/user-attachments/assets/4ec1b2ea-7fc6-4342-a10d-019508d6f093" />
+
 ----------
 
 # 🔁 Leader Election
@@ -155,7 +140,6 @@ Leader выполняет:
 -   requeue stale inflight jobs
 -   cleanup in_progress без живых pid
 -   административные задачи
-    
 
 ----------
 
@@ -172,7 +156,6 @@ Leader выполняет:
 Если worker упал:
 
 -   лидер вернёт задачу в очередь
-    
 
 ----------
 
