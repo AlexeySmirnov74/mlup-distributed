@@ -1,129 +1,270 @@
-<img width="1696" height="608" alt="mlup-distributed" src="https://github.com/user-attachments/assets/2a60dd7d-88d9-4da2-84d8-7e7560457660" />
+<img width="1696" height="608" alt="mlup-distributed" src="https://github.com/user-attachments/assets/71523006-f42b-4bb8-ab2e-67b78f260346" />
 
 # 🚀 MLup Distributed (Redis Queue Edition)
 
-> An enhanced, production-ready version of MLup
-> featuring a distributed queue, Redis storage, fault tolerance, and horizontal scaling.
+> Расширенная production-ready версия MLup  
+> с распределённой очередью, Redis-хранилищем, отказоустойчивостью и горизонтальным масштабированием.
 
 ----------
 
-# 📌 What is it?
+# 📌 Что это?
 
-This is a modified version of the base **https://mlup.org** project, where:
-* The `worker_and_queue` architecture has been completely redesigned.
-* Queues and job statuses are moved from process memory to Redis.
-* Horizontal scaling of workers is implemented.
-* Metrics (Prometheus + Grafana) are integrated.
-* Leader election is implemented.
-* Automatic stale job requeueing is active.
-* High availability and fault tolerance are provided.
-
+Это модифицированная версия базового проекта **https://mlup.org**, в которой:
+-   полностью переработана архитектура `worker_and_queue`
+-   очередь и статусы вынесены из памяти процесса в Redis
+-   реализовано горизонтальное масштабирование воркеров
+-   добавлены метрики (Prometheus + Grafana)
+-   реализован leader election
+-   реализовано requeue stale jobs
+-   добавлена отказоустойчивость
 ----------
 
-# 🧨 The Problem with Base MLup
+# 🧨 Проблема базового MLup
 
-In the standard MLup implementation, the flow is:
+В MLup уже есть механизм:
 ```
-POST /predict → receive predict_id
-GET /predict/{predict_id} → receive result
-```
-
-However, in the base version:
-* Statuses and results are stored **within the process memory**.
-* The queue is local to the uvicorn worker.
-* The protocol is effectively blocking (waiting up to `ttl_client_wait`).
-
-----------
-
-## ❗ What this means
-
-When running `uvicorn workers=4`, you get:
-* **Process A** (memory A)
-* **Process B** (memory B)
-* **Process C** (memory C)
-* **Process D** (memory D)
-
-Each process maintains its own separate queue, set of `predict_id`s, and statuses.
-
-----------
-
-## 💥 The Conflict
-
-* **POST** → Directed to Process A → stored in memory A
-* **GET** → Directed to Process C → checking memory C
-
-Process C has no knowledge of the `predict_id` created by Process A, resulting in 404/408 errors or lost IDs.
-
-### 🚨 Instability without Sticky Sessions
-Relying on sticky sessions is a bottleneck because it breaks horizontal scaling, doesn't work well in Kubernetes, and offers no protection if a process crashes.
-
-----------
-
-## 🔥 The Core Issue
-
-If the process that accepted the POST request crashes, restarts, or is redeployed, the `predict_id` disappears instantly because it lived only in that specific process's memory.
-
-----------
-
-# 💡 The Solution: MLup Distributed
-
-The queue and status storage are moved to Redis. Now:
-* `predict_id` is global.
-* Any API process can retrieve the result.
-* Any worker can process the task.
-* A process crash does not destroy the queue.
-* Execution guarantees are implemented.
-
-----------
-
-# 🏗 Architecture
-
-<img width="1696" height="608" alt="structure" src="https://github.com/user-attachments/assets/cbd8a67c-8fed-4c5d-9784-4ed8accbe036" />
-
-* **CLIENT** → Sends request to FastAPI.
-* **FastAPI (API)** → Receives request and pushes to Redis.
-* **Redis Queue** → Stores the tasks globally.
-* **Workers (1-N)** → Distributed Docker containers or machines processing tasks.
-
-----------
-
-# 🧠 Key Features
-
-* **Leader Election**: One worker becomes the leader via Redis lock to handle dead worker cleanup and stale job requeueing.
-* **Reliable Queue**: Uses `BRPOPLPUSH` and inflight tracking to ensure tasks are only ACKed upon successful completion.
-* **Metrics**: Prometheus + Grafana integration for monitoring queue length, active workers, and request duration.
-
-----------
-
-# 📦 Installation & Run
-
-```
-# Install
-pip install -r requirements.txt
-
-# Run via Docker
-docker compose up --build
-
-# Scale workers
-docker compose up --scale worker=4
+POST /predict → получить predict_id  
+GET /predict/{predict_id} → получить результат
 ```
 
-# 🌍 Horizontal Scaling
+Но в базовой реализации:
 
-You can run workers:
+-   статусы и результаты хранятся **в памяти процесса**
+-   очередь — локальная внутри uvicorn worker
+-   протокол фактически blocking (ожидание до `ttl_client_wait`)
+    
 
-* on other machines
-* in other containers
-* in Kubernetes
-* in Docker Swarm
-* The main thing is access to Redis.
+----------
+## ❗ Что это означает
 
-# 🛡 What is now guaranteed
+`uvicorn workers=4` 
 
-* No loss of predict_id
-* No loss of task when a worker crashes
-* No problem with uvicorn workers
-* No need for sticky sessions
-* Horizontal scaling
-* Fault-tolerance
-* Production-grade architecture
+Получаем:
+```
+Process A (memory A)
+Process B (memory B)
+Process C (memory C)
+Process D (memory D)
+```
+
+Каждый процесс имеет:
+
+-   свою очередь
+-   свои predict_id
+-   свои статусы
+
+----------
+
+## 💥 Проблема
+```
+    POST → Process A → memory A
+    GET  → Process C → memory C
+```
+Process C не знает про predict_id.
+
+Результат:
+-   404
+-   408
+-   потеря predict_id
+-   необходимость sticky sessions
+
+----------
+
+### 🚨 Без sticky sessions система нестабильна
+
+Можно использовать sticky sessions, но:
+-   это ломает горизонтальное масштабирование
+-   не работает корректно в Kubernetes
+-   не защищает от падения процесса
+-   не даёт восстановления после рестарта
+    
+
+----------
+## 🔥 Главная проблема
+
+Если процесс, который принял POST:
+
+-   упал
+-   был перезапущен
+-   задеплоен заново
+
+predict_id исчезает.
+
+Потому что он жил в памяти процесса.
+
+----------
+
+# 💡 Что сделано в этой версии
+
+Очередь и статус вынесены в Redis.
+
+Теперь:
+-   predict_id глобальный
+-   любой API-процесс может вернуть результат
+-   любой worker может обработать задачу
+-   падение процесса не уничтожает очередь
+-   реализована гарантия обработки
+```
+Основные изменения в mlup\web\architecture\redis_queue
+```
+----------
+
+# 🧠 Архитектурные отличия
+
+| Базовый MLup          | MLup Distributed                 |
+| --------------------- | -------------------------------- |
+| Память процесса       | Redis                            |
+| predict_id локальный  | predict_id глобальный            |
+| Нет гарантий доставки | Reliable queue                   |
+| Нет requeue           | Requeue stale jobs               |
+| Нет leader election   | Leader election через Redis lock |
+| Нет heartbeat         | Heartbeat workers                |
+| Нет метрик            | Prometheus + Grafana             |
+| Возможна потеря задач | Нет потери задач                 |
+| Нужен sticky session  | Не нужен                         |
+
+----------
+
+# 🏗 Архитектура
+
+<img width="1696" height="608" alt="structure" src="https://github.com/user-attachments/assets/4ec1b2ea-7fc6-4342-a10d-019508d6f093" />
+
+----------
+
+# 🔁 Leader Election
+
+Один из воркеров становится лидером через Redis lock.
+
+Leader выполняет:
+-   очистку dead workers
+-   requeue stale inflight jobs
+-   cleanup in_progress без живых pid
+-   административные задачи
+
+----------
+
+# 🔄 Reliable Queue
+
+Используется схема:
+
+-   BRPOPLPUSH
+-   processing list
+-   inflight zset
+-   inflight hash
+-   ack только после завершения
+    
+Если worker упал:
+
+-   лидер вернёт задачу в очередь
+
+----------
+
+# 📊 Метрики
+
+Добавлены:
+
+-   http_requests_total - Общее количество HTTP-запросов к API.
+-   http_request_duration_seconds - Время обработки HTTP-запросов.
+-   mlup_queue_length - Текущая длина очереди Redis (`LLEN predict_queue`).
+-   mlup_inflight - Количество задач, которые уже взяты воркером, но ещё не подтверждены (ACK)
+-   mlup_workers_active - Количество живых воркеров по heartbeat.
+----------
+
+# 🧩 Run Modes
+
+Через переменную:
+```
+    MLUP_RUN_MODE
+```
+-   api — только API
+-   worker — только worker loop
+-   both — оба режима
+
+----------
+
+# 🐳 Docker Compose
+
+Полная инфраструктура:
+
+-   Redis
+-   API
+-   Workers
+-   Prometheus
+-   Grafana
+-   Dozzle
+   
+----------
+
+# 📦 Установка
+```
+    git clone <repo>
+    cd mlup-distributed
+    
+    python3 -m venv venv
+    source venv/bin/activate
+    
+    pip install --upgrade pip
+    pip install -r requirements.txt
+```
+----------
+# 📦 Настройка
+
+common_app.py — это единая точка конфигурации MLup-приложения.
+
+Файл содержит:
+
+- демо модель (DemoStubModelSync)
+- Функцию build_up(), которая настраивает: Redis, очередь, TTL, режим работы, архитектуру (worker_and_queue), non-blocking режим (is_long_predict=True)
+
+app.py — это HTTP API слой:
+
+- загружает модель
+- загружает web-приложение MLup
+- включает режим MLUP_RUN_MODE=api
+- запускает только HTTP-сервер (без воркер-цикла)
+- подключает Prometheus middleware
+- публикует /metrics
+- запускает uvicorn
+
+Это означает:
+
+- API не выполняет predict
+- API только: принимает POST, кладёт задачи в Redis, отдаёт predict_id, отвечает на GET-поллинг
+
+# 🐳 ▶ Docker запуск
+```
+    docker compose up --build
+```
+Масштабирование:
+```
+    docker compose up --scale worker=4
+```
+Масштабирование на других машинах:
+```
+    cd workers
+    docker compose -f ./docker-compose.workers.yml up --scale worker=4
+```
+----------
+
+# 🌍 Горизонтальное масштабирование
+
+Можно запускать workers:
+
+-   на других машинах
+-   в других контейнерах
+-   в Kubernetes
+-   в Docker Swarm
+
+Главное — доступ к Redis.
+
+----------
+
+# 🛡 Что теперь гарантировано
+
+-   Нет потери predict_id
+-   Нет потери задачи при падении worker
+-   Нет проблемы с uvicorn workers
+-   Нет необходимости в sticky sessions
+-   Горизонтальное масштабирование
+-   Fault-tolerance
+-   Production-grade архитектура
