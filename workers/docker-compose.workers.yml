@@ -1,0 +1,39 @@
+services:
+  worker:
+    image: mlup-distributed:latest
+    command: ["python", "workers.py"]
+    restart: unless-stopped
+
+    environment:
+      # Worker mode: start queue worker loop, but do NOT start HTTP server
+      MLUP_RUN_MODE: "worker"
+
+      # IMPORTANT: prevent workers.py from spawning children inside container
+      # (each container should be one worker process unless you intentionally spawn more)
+      WORKER_CHILD: "1"
+
+      # Unique node id for logs/heartbeats (set per machine)
+      MLUP_NODE_ID: "${MLUP_NODE_ID:-worker-node}"
+
+      # Redis connection (point to your central Redis)
+      # Option A (recommended): use MODEL_REDIS / MODEL_REDIS_PORT (matches your mlup.config.get_redis_url())
+      MODEL_REDIS: "${MODEL_REDIS}"
+      MODEL_REDIS_PORT: "${MODEL_REDIS_PORT:-6379}"
+
+      # Option B: if your code also supports REDIS_URL, keep it too (harmless)
+      REDIS_URL: "${REDIS_URL:-}"
+
+      # Queue settings
+      REDIS_QUEUE_NAME: "${REDIS_QUEUE_NAME:-predict_queue}"
+      TTL_PREDICTED_DATA: "${TTL_PREDICTED_DATA:-300}"
+      MAX_QUEUE_SIZE: "${MAX_QUEUE_SIZE:-100}"
+
+      # Metrics labels (these workers don’t expose /metrics, but label is fine)
+      METRICS_APP_NAME: "${METRICS_APP_NAME:-mlup_redis_queue}"
+
+    # optional: make logs nicer / avoid huge json spam
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"

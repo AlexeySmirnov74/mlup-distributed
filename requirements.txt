@@ -1,0 +1,14 @@
+fastapi==0.129.0
+uvicorn==0.34.0
+redis==5.3.0b4
+prometheus_client==0.24.1
+pydantic==2.10.4
+starlette==0.41.3
+anyio==4.12.1
+h11==0.16.0
+click==8.3.1
+typing_extensions==4.12.2
+PyYAML==6.0.2
+pytest==8.3.4
+pytest-asyncio==0.25.3
+httpx==0.28.1

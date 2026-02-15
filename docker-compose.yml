@@ -1,0 +1,93 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mlup-redis-prod
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+
+  api:
+    build: .
+    container_name: mlup-api-prod
+    depends_on:
+      redis:
+        condition: service_healthy
+    labels:
+      dev.dozzle.group: API
+    environment:
+      MLUP_RUN_MODE: api
+      REDIS_URL: ${REDIS_URL}
+      MODEL_PORT: ${MODEL_PORT}
+      WORKERS: ${UVICORN_WORKERS}
+      REDIS_QUEUE_NAME: ${REDIS_QUEUE_NAME}
+      TTL_PREDICTED_DATA: ${TTL_PREDICTED_DATA}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE}
+      METRICS_APP_NAME: ${METRICS_APP_NAME}
+    ports:
+      - "${MODEL_PORT}:${MODEL_PORT}"
+    restart: unless-stopped
+
+  worker:
+    build: .
+    depends_on:
+      redis:
+        condition: service_healthy
+    labels:
+      dev.dozzle.group: Workers
+    environment:
+      MLUP_RUN_MODE: worker
+      WORKER_CHILD: "1"
+      REDIS_URL: ${REDIS_URL}
+      REDIS_QUEUE_NAME: ${REDIS_QUEUE_NAME}
+      TTL_PREDICTED_DATA: ${TTL_PREDICTED_DATA}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE}
+      METRICS_APP_NAME: ${METRICS_APP_NAME}
+    command: ["python", "workers.py"]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    container_name: mlup-prometheus-prod
+    labels:
+      dev.dozzle.group: Monitoring
+    depends_on:
+      - api
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: mlup-grafana-prod
+    labels:
+      dev.dozzle.group: Monitoring
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+
+  dozzle:
+    image: amir20/dozzle:v8.9.0
+    container_name: mlup-dozzle-prod
+    ports:
+      - "9999:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_TAILSIZE: 1000
+    restart: unless-stopped

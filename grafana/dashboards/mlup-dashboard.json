@@ -1,0 +1,242 @@
+{
+  "uid": "mlup-redis-queue",
+  "title": "MLup - Redis Queue - SRE Dashboard",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "tags": ["mlup", "redis", "queue", "sre"],
+  "time": { "from": "now-15m", "to": "now" },
+  "annotations": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "app",
+        "label": "app",
+        "hide": 0,
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(mlup_queue_length, app)",
+        "refresh": 1,
+        "sort": 1,
+        "current": { "text": "mlup_redis_queue", "value": "mlup_redis_queue" }
+      },
+      {
+        "type": "query",
+        "name": "queue",
+        "label": "queue",
+        "hide": 0,
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(mlup_queue_length{app=\"$app\"}, queue)",
+        "refresh": 1,
+        "sort": 1,
+        "current": { "text": "predict_queue", "value": "predict_queue" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Traffic & Latency",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "stat",
+      "title": "RPS (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"$app\"}[1m]))",
+          "legendFormat": "rps"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Error rate (5xx)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"$app\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{app=\"$app\"}[5m])), 1e-9)",
+          "legendFormat": "5xx_rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "p95 latency",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{app=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "p50 latency",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{app=\"$app\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP status rates (200 vs 202 vs 4xx/5xx)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "targets": [
+        { "expr": "sum(rate(http_requests_total{app=\"$app\",status=\"200\"}[1m]))", "legendFormat": "200 OK" },
+        { "expr": "sum(rate(http_requests_total{app=\"$app\",status=\"202\"}[1m]))", "legendFormat": "202 Accepted" },
+        { "expr": "sum(rate(http_requests_total{app=\"$app\",status=~\"4..\"}[1m]))", "legendFormat": "4xx" },
+        { "expr": "sum(rate(http_requests_total{app=\"$app\",status=~\"5..\"}[1m]))", "legendFormat": "5xx" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 } }
+    },
+
+    {
+      "type": "row",
+      "title": "Queue Health",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
+    },
+    {
+      "type": "stat",
+      "title": "Queue length",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 15 },
+      "targets": [
+        { "expr": "mlup_queue_length{app=\"$app\",queue=\"$queue\"}", "legendFormat": "queue" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Inflight jobs",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 15 },
+      "targets": [
+        { "expr": "mlup_inflight{app=\"$app\",queue=\"$queue\"}", "legendFormat": "inflight" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Active workers",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 15 },
+      "targets": [
+        { "expr": "mlup_workers_active{app=\"$app\"}", "legendFormat": "workers" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Backlog per worker",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 15 },
+      "targets": [
+        {
+          "expr": "(mlup_queue_length{app=\"$app\",queue=\"$queue\"} + mlup_inflight{app=\"$app\",queue=\"$queue\"}) / clamp_min(mlup_workers_active{app=\"$app\"}, 1)",
+          "legendFormat": "jobs/worker"
+        }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 2 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Queue & inflight over time",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "mlup_queue_length{app=\"$app\",queue=\"$queue\"}", "legendFormat": "queue_length" },
+        { "expr": "mlup_inflight{app=\"$app\",queue=\"$queue\"}", "legendFormat": "inflight" }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 0 } }
+    },
+
+    {
+      "type": "row",
+      "title": "Capacity & Autoscaling (estimates)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }
+    },
+    {
+      "type": "stat",
+      "title": "Estimated completion rate (jobs/s)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Approximation: 200 OK rate as proxy for completed jobs/s (works for demo).",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 29 },
+      "targets": [
+        { "expr": "sum(rate(http_requests_total{app=\"$app\",status=\"200\"}[1m]))", "legendFormat": "jobs/s" }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 2 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Backlog (queue + inflight)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 29 },
+      "targets": [
+        { "expr": "mlup_queue_length{app=\"$app\",queue=\"$queue\"} + mlup_inflight{app=\"$app\",queue=\"$queue\"}", "legendFormat": "backlog" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "stat",
+      "title": "Backlog ETA (seconds)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "ETA = backlog / completion_rate. Uses 200 OK rate as proxy for completions.",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 29 },
+      "targets": [
+        {
+          "expr": "(mlup_queue_length{app=\"$app\",queue=\"$queue\"} + mlup_inflight{app=\"$app\",queue=\"$queue\"}) / clamp_min(sum(rate(http_requests_total{app=\"$app\",status=\"200\"}[1m])), 0.001)",
+          "legendFormat": "eta_s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 1 } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Autoscaling signal (suggested worker replicas)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Suggested replicas = ceil(backlog/5). Target=5 jobs/worker (demo).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
+      "targets": [
+        {
+          "expr": "ceil(((mlup_queue_length{app=\"$app\",queue=\"$queue\"} + mlup_inflight{app=\"$app\",queue=\"$queue\"}) / 5))",
+          "legendFormat": "suggested_replicas"
+        },
+        {
+          "expr": "mlup_workers_active{app=\"$app\"}",
+          "legendFormat": "current_workers"
+        }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 0 } }
+    }
+  ]
+}
